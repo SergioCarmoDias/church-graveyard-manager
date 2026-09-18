@@ -59,7 +59,7 @@ function createMainWindow() {
   mainWindow.loadFile('index.html');
 
   // This opens the Console automatically when the app launches
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {
