@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Church Graveyard Manager</title>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      display: flex; 
+      flex-direction: column; /* Stacks main area and footer vertically */
+      height: 100vh; 
+      margin: 0; 
+      background: #f4f4f9; 
+      overflow: hidden; 
+    }
+
+    /* Main layout container holding map and sidebar side-by-side */
+    #main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #map-container { flex: 2; padding: 10px; overflow: auto; border-right: 2px solid #ddd; display: flex; justify-content: center; align-items: center; background: #fff; }
+    #svg-wrapper { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+    #svg-wrapper svg { width: 100%; height: 100%; max-height: 90vh; object-fit: contain; }
+    
+    #sidebar { flex: 1; padding: 30px; background: white; box-shadow: -2px 0 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow-y: auto; }
+    
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+    input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { background: #2c3e50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #34495e; }
+    .selected-grave { fill: #e74c3c !important; opacity: 0.85; }
+
+    /* Common Footer styling spanning the full bottom width */
+    footer {
+      background: #ffffff;
+      text-align: center;
+      padding: 8px;
+      font-size: 0.8rem;
+      color: #6b7280;
+      border-top: 1px solid #e5e7eb;
+      flex-shrink: 0;
+    }
+
+    #toast-notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #10b981; 
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-family: sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    #toast-notification.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Main container holding map and sidebar side-by-side -->
+  <div id="main-layout">
+    <div id="map-container">
+      <!-- Load your exported Draw.io SVG here -->
+      <div id="svg-wrapper"></div>
+    </div>
+
+    <div id="sidebar">
+      <!-- Optional Header Logo can go here -->
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+        <img src="logo.png" alt="Logo" style="width: 32px; height: 32px; object-fit: contain;">
+        <h2 style="margin: 0; font-size: 1.4rem;">Grave Details</h2>
+      </div>
+
+      <div style="margin-top: 10px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+        <label style="margin-bottom: 8px;">Data Management</label>
+        <div style="display: flex; gap: 10px;">
+          <button id="export-btn" style="background: #4b5563; flex: 1; font-size: 14px; padding: 8px;">Backup Data</button>
+          <button id="import-btn" style="background: #4b5563; flex: 1; font-size: 14px; padding: 8px;">Restore Backup</button>
+        </div>
+      </div>
+
+      <p>Selected Plot: <span id="display-plot-id" style="font-weight: bold; color: #e74c3c;">None selected</span></p>
+      
+      <input type="hidden" id="plot_id">
+      
+      <div class="form-group">
+        <label>First Name</label>
+        <input type="text" id="first-name" placeholder="First name">
+      </div>
+
+      <div class="form-group">
+        <label>Middle Name</label>
+        <input type="text" id="middle-name" placeholder="Middle name">
+      </div>
+
+      <div class="form-group">
+        <label>Surname (Last Name)</label>
+        <input type="text" id="surname" placeholder="Surname">
+      </div>
+      
+      <div class="form-group">
+        <label>Date of Birth</label>
+        <input type="date" id="birth_date">
+      </div>
+      
+      <div class="form-group">
+        <label>Date of Death</label>
+        <input type="date" id="dod-input">
+      </div>
+      
+      <div class="form-group">
+        <label>Notes / Family Info</label>
+        <textarea id="notes" rows="4" placeholder="Additional details..."></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center; margin-top: auto;">
+        <button id="save-btn" style="flex: 1;">Save Record</button>
+        <button id="clear-grave-btn" style="background: #e74c3c; display: none; flex: 1;">Clear Grave</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer now sits outside at the bottom, common to the entire app window -->
+  <footer>
+    &copy; 2026 Our Lady Of Flight Church & Sergio C. D. All rights reserved.
+  </footer>
+
+  <!-- Custom Dialog Modal -->
+  <div id="custom-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 24px; border-radius: 8px; width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: center;">
+      <p id="modal-message" style="margin-bottom: 20px; color: #1f2937; font-size: 15px; font-weight: 500;"></p>
+      <div id="modal-buttons" style="display: flex; justify-content: center; gap: 10px;">
+        <!-- Buttons injected dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-notification">Record saved successfully!</div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
